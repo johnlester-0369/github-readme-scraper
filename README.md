@@ -1,83 +1,75 @@
 # GitHub README Scraper
 
-A Node.js tool that downloads all README.md files from a GitHub user's repositories, preserving monorepo directory structures.
+> Download every README.md from any GitHub user's repositories — including nested READMEs inside monorepos — with a single command.
 
-## 🚀 Features
+## The Problem
 
-- Fetches all repositories for any GitHub username
-- Recursively scans each repository's file tree
-- Finds all README.md files (case-insensitive)
-- Preserves original directory structure (great for monorepos)
-- Automatically falls back from `main` to `master` branch
-- Saves files locally with clear organization
+You want to read, analyze, or archive the documentation from all of a GitHub user's public repositories. Doing this manually means opening every repo, navigating into every subdirectory, and copying files one by one. For users with dozens of repos — or repos with monorepo structures containing multiple READMEs — this is impractical.
 
-## 📋 Prerequisites
+This tool automates the entire process: one command, one username, everything downloaded and organized locally.
 
-- [Node.js](https://nodejs.org/) (v14 or later)
-- A GitHub username to scrape (no authentication required for public repos)
-
-## 🔧 Installation
+## Quick Start
 
 ```bash
-# Clone the repository
+# 1. Clone and install
 git clone https://github.com/johnlester-0369/github-readme-scraper.git
 cd github-readme-scraper
-
-# Install dependencies
 npm install
-```
 
-## 🎯 Usage
-
-```bash
-node index.js <github-username>
-```
-
-**Example:**
-```bash
+# 2. Run
 node index.js johnlester-0369
 ```
 
-This will:
-1. Fetch all repositories for `johnlester-0369`
-2. Scan each repo for README.md files
-3. Download them to `./downloads/johnlester-0369/` preserving structure
+That's it. README files appear in `./downloads/johnlester-0369/`.
+
+## 📋 Prerequisites
+
+- Node.js v14 or later
+- Internet access to reach `api.github.com` and `raw.githubusercontent.com`
+- No GitHub account or token required for public repositories
 
 ## 📁 Output Structure
 
-Downloads are organized exactly as they appear in the repository:
+Files are saved under `./downloads/` and preserve the exact directory structure from each repository:
 
 ```
 downloads/
 └── {username}/
     └── {repo-name}/
-        ├── README.md                          # Root README
+        ├── README.md                    ← root-level README
         ├── packages/
         │   └── server/
-        │       └── README.md                   # Monorepo package README
+        │       └── README.md            ← monorepo package README
         └── docs/
-            └── README.md                        # Documentation README
+            └── README.md               ← nested docs README
 ```
+
+The `downloads/` directory is excluded from version control via `.gitignore`.
 
 ## ⚙️ How It Works
 
-1. **Fetch Repositories** — Uses GitHub API to get all user repos (`/users/{username}/repos`)
-2. **Get File Tree** — For each repo, requests the complete git tree with `?recursive=1`
-3. **Find READMEs** — Filters for files ending in `readme.md` (case-insensitive)
-4. **Download** — Constructs raw content URLs and saves files with original paths
-5. **Branch Fallback** — Tries `main` first, then `master` if 404
+The scraper runs five operations in sequence for each repository:
 
-## 📝 Notes
+1. **Fetch repository list** — calls `/users/{username}/repos` with `per_page=100`, sorted by last updated
+2. **Get complete file tree** — calls `/repos/{username}/{repo}/git/trees/{branch}?recursive=1` to retrieve every file path in the repo in a single request
+3. **Filter for READMEs** — selects all `blob` entries whose path ends with `readme.md` (case-insensitive), catching `README.md`, `Readme.md`, `README.MD`, and any other casing variation
+4. **Download raw content** — constructs a `raw.githubusercontent.com` URL for each README and writes the file to `./downloads/{username}/{repo}/{original-path}`
+5. **Branch fallback** — if the `main` branch returns a 404, the tool automatically retries with `master`, both for the tree fetch and the raw file download
 
-- Rate limiting: Unauthenticated requests are limited to 60/hr
-- Large repos: GitHub API limits tree responses (~100k entries max)
-- README matching: Case-insensitive (catches `Readme.md`, `README.MD`, etc.)
-- Empty directories: Not created if no READMEs found in a repo
+## 📝 Notes & Limitations
+
+| Topic | Detail |
+|---|---|
+| **Rate limiting** | Unauthenticated GitHub API requests are capped at 60 per hour. Each repository requires at least one API call for the file tree, so large accounts will hit this limit. |
+| **Repositories per fetch** | The tool fetches up to 100 repositories per user in a single request. Users with more than 100 repos will have only their 100 most recently updated repos scraped. |
+| **Tree size** | GitHub's API limits recursive tree responses to approximately 100,000 entries per repository. Extremely large monorepos may return a truncated tree. |
+| **Private repositories** | No authentication is configured. Only public repositories are accessible. |
+| **Branch support** | Only `main` and `master` branches are attempted. Repositories using other default branch names will be skipped with an error logged to the console. |
+
+## 🤝 Contributing
+
+Open an issue or pull request on GitHub.
 
 ## 📄 License
 
 ISC
-
-## 🤝 Contributing
-
-Feel free to open issues or PRs for improvements!
